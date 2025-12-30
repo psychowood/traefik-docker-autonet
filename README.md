@@ -66,7 +66,7 @@ services:
       - "80:80"
       - "443:443"
 
-  traefik-network-manager:
+  traefik-docker-autonet:
     image: docker:cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -80,7 +80,7 @@ services:
 
 ### With Docker Socket Proxy (Recommended)
 
-For enhanced security, use a Docker socket proxy to limit Docker API access. Both `traefik` and `traefik-network-manager` should set `DOCKER_HOST=tcp://{proxy-service}:2375` and connect to the proxy network.
+For enhanced security, use a Docker socket proxy to limit Docker API access. Both `traefik` and `traefik-docker-autonet` should set `DOCKER_HOST=tcp://{proxy-service}:2375` and connect to the proxy network.
 
 #### Option A: wollomatic/socket-proxy
 
@@ -92,7 +92,7 @@ socket-proxy:
   container_name: socket-proxy
   command:
     - '-loglevel=info'
-    - '-allowfrom=traefik-network-manager'
+    - '-allowfrom=traefik-docker-autonet'
     - '-allowfrom=traefik'
     - '-listenip=0.0.0.0'
     - '-allowGET=/v1\..{1,2}/(containers/.*|events.*|networks.*|version)'
