@@ -26,7 +26,7 @@ This tool (script) monitors Docker events and automatically:
 - **Smart detection**: Skips network creation if container already shares a network with Traefik
 - **Cleanup on startup**: Removes orphaned networks from previous runs
 - **Configurable**: Network suffix and Traefik container name are configurable via environment variables
-- **Minimal footprint**: Uses the `docker:cli` image with a simple shell script self contained in a docker compose
+- **Minimal footprint**: Uses the `docker:cli` image with a simple shell script
 - **Event-driven**: Monitors Docker events in real-time for immediate response
 
 ## How It Works
@@ -44,7 +44,16 @@ This tool (script) monitors Docker events and automatically:
 
 ## Usage
 
-### Basic Setup
+### Setup with Local Script
+
+Download the script locally and mount it as a volume in your docker-compose:
+
+```bash
+curl -o traefik-docker-autonet.sh https://raw.githubusercontent.com/psychowood/traefik-docker-autonet/main/traefik-docker-autonet.sh
+chmod +x traefik-docker-autonet.sh
+```
+
+Then use it in your docker-compose.yml:
 
 ```yaml
 services:
@@ -61,50 +70,63 @@ services:
     image: docker:cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik-docker-autonet.sh:/app/traefik-docker-autonet.sh:ro
     environment:
       - NETWORK_SUFFIX=traefik-autonet
       - TRAEFIK_CONTAINER=traefik
-    command: >
-      sh -c '
-      # Script content here
-      '
+    command: sh /app/traefik-docker-autonet.sh
     restart: unless-stopped
 ```
 
 ### With Docker Socket Proxy (Recommended)
 
-For enhanced security, use docker-socket-proxy to limit Docker API access:
+For enhanced security, use a Docker socket proxy to limit Docker API access. Both `traefik` and `traefik-network-manager` should set `DOCKER_HOST=tcp://{proxy-service}:2375` and connect to the proxy network.
+
+#### Option A: wollomatic/socket-proxy
+
+More granular control with regex-based endpoint filtering and container whitelisting:
 
 ```yaml
-services:
-  docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      CONTAINERS: 1
-      NETWORKS: 1
-      EVENTS: 1
-      POST: 1
-    networks:
-      - traefik-socket
+socket-proxy:
+  image: wollomatic/socket-proxy:1
+  container_name: socket-proxy
+  command:
+    - '-loglevel=info'
+    - '-allowfrom=traefik-network-manager'
+    - '-allowfrom=traefik'
+    - '-listenip=0.0.0.0'
+    - '-allowGET=/v1\..{1,2}/(containers/.*|events.*|networks.*|version)'
+    - '-allowPOST=/v1\..{1,2}/networks/.*/connect'
+    - '-allowPOST=/v1\..{1,2}/networks/.*/disconnect'
+    - '-allowPOST=/v1\..{1,2}/networks/create'
+    - '-allowDELETE=/v1\..{1,2}/networks/.*'
+    - '-stoponwatchchannel'
+    - '-watchdeschedule'
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+  networks:
+    - traefik-socket
+  restart: unless-stopped
+```
 
-  traefik:
-    image: traefik:latest
-    container_name: traefik
-    environment:
-      - DOCKER_HOST=tcp://docker-socket-proxy:2375
-    networks:
-      - traefik-socket
+#### Option B: tecnativa/docker-socket-proxy
 
-  traefik-network-manager:
-    image: docker:cli
-    environment:
-      - DOCKER_HOST=tcp://docker-socket-proxy:2375
-      - NETWORK_SUFFIX=traefik-autonet
-      - TRAEFIK_CONTAINER=traefik
-    networks:
-      - traefik-socket
+Simpler configuration with environment variable-based permissions:
+
+```yaml
+docker-socket-proxy:
+  image: tecnativa/docker-socket-proxy
+  container_name: docker-socket-proxy
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+  environment:
+    CONTAINERS: 1
+    NETWORKS: 1
+    EVENTS: 1
+    POST: 1
+  networks:
+    - traefik-socket
+  restart: unless-stopped
 ```
 
 ### Application Container Example
