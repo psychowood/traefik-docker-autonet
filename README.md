@@ -16,7 +16,7 @@ This tool (script) monitors Docker events and automatically:
 
 - Creates dedicated internal networks for each Traefik-enabled container
 - Connects both the container and Traefik to these networks
-- Cleans up networks when containers stop
+- Cleans up networks when containers are removed
 - Skips automatic network creation if the container already shares a network with Traefik, after logging it
 
 ## Features
@@ -184,7 +184,7 @@ services:
 The network manager will automatically:
 1. Create a network named `myapp-traefik-autonet`
 2. Connect both `myapp` and `traefik` to this network
-3. Clean up when `myapp` stops
+3. Clean up when `myapp` is removed
 
 ## Configuration
 
@@ -212,7 +212,7 @@ If a container is already on a network accessible to Traefik, the script logs an
 ### Network Cleanup
 
 Networks are automatically removed when:
-- The associated container stops, dies, or is destroyed
+- The associated container is destroyed
 - The script starts and finds orphaned networks from containers that no longer exist
 
 ## Security Considerations
