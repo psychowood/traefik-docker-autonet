@@ -32,8 +32,8 @@ This tool (script) monitors Docker events and automatically:
 ## How It Works
 
 1. **On startup**: Scans existing containers with `traefik.enable=true` and sets up networks
-2. **On container start**: Detects new containers with the label and creates networks automatically
-3. **On container stop/die/destroy**: Disconnects Traefik and removes the dedicated network
+2. **On container creation**: Detects new containers with the label and creates dedicated networks automatically
+3. **On container destruction**: Removes the dedicated network
 4. **Continuous monitoring**: Watches Docker events stream for real-time updates, without polling
 
 ## Requirements
@@ -82,14 +82,52 @@ services:
 
 For enhanced security, use a Docker socket proxy to limit Docker API access. Both `traefik` and `traefik-docker-autonet` should set `DOCKER_HOST=tcp://{proxy-service}:2375` and connect to the proxy network.
 
+#### Example Docker Compose Structure
+
+```yaml
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    environment:
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - traefik-socket
+    restart: unless-stopped
+
+  traefik-docker-autonet:
+    image: docker:cli
+    volumes:
+      - ./traefik-docker-autonet.sh:/app/traefik-docker-autonet.sh:ro
+    environment:
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+      - NETWORK_SUFFIX=traefik-autonet
+      - TRAEFIK_CONTAINER=traefik
+    command: sh /app/traefik-docker-autonet.sh
+    networks:
+      - traefik-socket
+    restart: never
+
+  docker-socket-proxy:
+    # See snippets below for Option A or B
+
+networks:
+  traefik-socket:
+    driver: bridge
+    internal: true
+```
+
 #### Option A: wollomatic/socket-proxy
 
 More granular control with regex-based endpoint filtering and container whitelisting:
 
 ```yaml
-socket-proxy:
+docker-socket-proxy:
   image: wollomatic/socket-proxy:1
-  container_name: socket-proxy
+  container_name: docker-socket-proxy
   command:
     - '-loglevel=info'
     - '-allowfrom=traefik-docker-autonet'
