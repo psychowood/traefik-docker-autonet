@@ -18,8 +18,8 @@ docker network ls --filter "name=-${NETWORK_SUFFIX}$" --format "{{.Name}}" | whi
   # Check if container exists and is running
   if ! docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
     echo "Removing orphaned network: $network_name";
-    docker network disconnect $network_name $TRAEFIK_CONTAINER 2>/dev/null || true;
-    docker network rm $network_name 2>/dev/null || true;
+    docker network disconnect $network_name $TRAEFIK_CONTAINER;
+    docker network rm $network_name;
   fi;
 done;
 
@@ -49,15 +49,15 @@ docker ps --filter "label=traefik.enable=true" --format "{{.Names}}" | while rea
     
     # Create internal network
     echo "Creating internal network: $network_name";
-    docker network create --internal $network_name 2>/dev/null || echo "Network already exists";
+    docker network create --internal $network_name;
     
     # Connect container to the network
     echo "Connecting $container_name to $network_name";
-    docker network connect $network_name $container_name 2>/dev/null || echo "Already connected";
+    docker network connect $network_name $container_name;
     
     # Connect traefik to the network
     echo "Connecting $TRAEFIK_CONTAINER to $network_name";
-    docker network connect $network_name $TRAEFIK_CONTAINER 2>/dev/null || echo "Already connected";
+    docker network connect $network_name $TRAEFIK_CONTAINER;
   fi;
 done;
 
@@ -97,15 +97,15 @@ docker events --filter "type=container" --filter "event=create" --filter "event=
       
       # Create internal network
       echo "Creating internal network: $network_name";
-      docker network create --internal $network_name 2>/dev/null || echo "Network already exists";
+      docker network create --internal $network_name;
       
       # Connect container to the network
       echo "Connecting $container_name to $network_name";
-      docker network connect $network_name $container_name 2>/dev/null || echo "Already connected";
+      docker network connect $network_name $container_name;
       
       # Connect traefik to the network
       echo "Connecting $TRAEFIK_CONTAINER to $network_name";
-      docker network connect $network_name $TRAEFIK_CONTAINER 2>/dev/null || echo "Already connected";
+      docker network connect $network_name $TRAEFIK_CONTAINER;
     fi;
   fi;
   
@@ -117,8 +117,7 @@ docker events --filter "type=container" --filter "event=create" --filter "event=
     # Check if network exists and remove it
     if docker network inspect $network_name >/dev/null 2>&1; then
       echo "Removing network: $network_name";
-      docker network rm $network_name 2>/dev/null || echo "Failed to remove network";
-    fi;
+      docker network rm $network_name;
     fi;
   fi;
 done;
