@@ -49,9 +49,10 @@ This tool (script) monitors Docker events and automatically:
 Download the script locally and mount it as a volume in your docker-compose:
 
 ```bash
-curl -o traefik-docker-autonet.sh https://raw.githubusercontent.com/psychowood/traefik-docker-autonet/main/traefik-docker-autonet.sh
+wget -O traefik-docker-autonet.sh https://raw.githubusercontent.com/psychowood/traefik-docker-autonet/main/traefik-docker-autonet.sh
 chmod +x traefik-docker-autonet.sh
 ```
+
 
 Then use it in your docker-compose.yml:
 
