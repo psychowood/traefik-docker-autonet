@@ -8,7 +8,7 @@ This project provides a lightweight Docker container that automatically manages 
 
 ## Problem Statement
 
-In Docker environments with Traefik as a reverse proxy, containers need to be on the same network as Traefik to be accessible. Manually managing these network connections becomes tedious, especially in dynamic environments where containers are frequently created and destroyed; moreover reusing a common reverse proxy network is not a best practice because that way containers are not isolated.
+In Docker environments with Traefik as a reverse proxy, containers need to be on the same network as Traefik to be accessible. Manually managing these network connections becomes tedious, especially in dynamic environments where containers are frequently created and destroyed; moreover reusing a common reverse proxy network is not a best practice because that way containers are not isolated, even if it could be accettable in some scenarios.
 
 ## Solution
 
@@ -44,17 +44,34 @@ This tool (script) monitors Docker events and automatically:
 
 ## Usage
 
-### Setup with Local Script
+### Simplified Setup (Shared Reverse Proxy Network)
 
-Download the script locally and mount it as a volume in your docker-compose:
+This is the simplest approach: all traefik-enabled containers connect to a single shared network with Traefik.
+
+**For detailed documentation, see [shared-network-scenario/README.md](shared-network-scenario/README.md)**
+
+Quick start:
+
+```bash
+cd shared-network-scenario
+wget -O traefik-docker-autonet.sh traefik-docker-autonet-simple.sh
+chmod +x traefik-docker-autonet.sh
+```
+
+Then follow the configuration steps in the [shared-network-scenario README](shared-network-scenario/README.md).
+
+### Advanced Setup (Per-Container Isolated Networks)
+
+For stronger isolation, use the full version which creates a dedicated network for each container with automatic subnet allocation.
+
+Download the script:
 
 ```bash
 wget -O traefik-docker-autonet.sh https://raw.githubusercontent.com/psychowood/traefik-docker-autonet/main/traefik-docker-autonet.sh
 chmod +x traefik-docker-autonet.sh
 ```
 
-
-Then use it in your docker-compose.yml:
+Use it in your docker-compose.yml:
 
 ```yaml
 services:
@@ -74,12 +91,13 @@ services:
       - ./traefik-docker-autonet.sh:/app/traefik-docker-autonet.sh:ro
     environment:
       - NETWORK_SUFFIX=traefik-autonet
+      - AUTONET_SUBNET=172.30.0.0/16
       - TRAEFIK_CONTAINER=traefik
     command: sh /app/traefik-docker-autonet.sh
     restart: unless-stopped
 ```
 
-### With Docker Socket Proxy (Recommended)
+### With Docker Socket Proxy (Recommended for Security)
 
 For enhanced security, use a Docker socket proxy to limit Docker API access. Both `traefik` and `traefik-docker-autonet` should set `DOCKER_HOST=tcp://{proxy-service}:2375` and connect to the proxy network.
 
@@ -182,35 +200,54 @@ services:
       - traefik.http.services.myapp.loadbalancer.server.port=80
 ```
 
-The network manager will automatically:
-1. Create a network named `myapp-traefik-autonet`
+**With Simplified Setup:**
+The container will automatically be connected to the shared `reverse-proxy` network when created, and disconnected when destroyed.
+
+**With Advanced Setup:**
+The script will automatically:
+1. Create a dedicated network named `myapp-traefik-autonet` with an isolated /30 subnet
 2. Connect both `myapp` and `traefik` to this network
-3. Clean up when `myapp` is removed
+3. Clean up when `myapp` is destroyed
 
 ## Configuration
 
-### Environment Variables
+### Simplified Setup Environment Variables
 
-- `NETWORK_SUFFIX`: Suffix for auto-created networks (default: `traefik-autonet`)
+- `REVERSE_PROXY_NETWORK`: The shared reverse proxy network name (default: `reverse-proxy`)
 - `TRAEFIK_CONTAINER`: Name of the Traefik container (default: `traefik`)
 
-### Network Naming Convention
+### Advanced Setup Environment Variables
+
+- `NETWORK_SUFFIX`: Suffix for auto-created networks (default: `traefik-autonet`)
+- `AUTONET_SUBNET`: Subnet range for automatic /30 allocation (default: `172.30.0.0/16`)
+- `TRAEFIK_CONTAINER`: Name of the Traefik container (default: `traefik`)
+
+### Advanced Setup: Network Naming and Subnetting
 
 Auto-created networks follow the pattern: `{container-name}-{NETWORK_SUFFIX}`
 
-Example: `myapp-traefik-autonet`
+Example: `myapp-traefik-autonet` with subnet `172.30.0.0/30`
+
+Each container gets its own /30 subnet automatically allocated from the `AUTONET_SUBNET` range, ensuring isolation and preventing network collisions.
 
 ## Behavior
 
-### Network Creation Logic
+### Simplified Setup
 
-The script creates an automatic network only if:
+Containers labeled with `traefik.enable=true` are:
+- Connected to the shared reverse proxy network on creation
+- Disconnected from the network on destruction
+
+### Advanced Setup: Network Creation Logic
+
+The script creates an automatic isolated network only if:
 - The container has `traefik.enable=true` label
 - The container does NOT already share a network with Traefik
+- A /30 subnet is available in the `AUTONET_SUBNET` range
 
 If a container is already on a network accessible to Traefik, the script logs an informational message and skips automatic network creation.
 
-### Network Cleanup
+### Advanced Setup: Network Cleanup
 
 Networks are automatically removed when:
 - The associated container is destroyed
@@ -218,9 +255,21 @@ Networks are automatically removed when:
 
 ## Security Considerations
 
+**Simplified Setup:**
+- Uses a shared network with Traefik (lower isolation)
+- All labeled containers are on the same network as Traefik
+- Suitable when containers are in the same trust domain
+
+**Advanced Setup:**
 - All auto-created networks are **internal** (no external connectivity)
+- Each container gets an isolated /30 network
+- Stronger isolation between containers
+- Prevents network collisions across deployments
+
+**For Both Setups:**
 - Use docker-socket-proxy to limit Docker API access
-- The script only requires: `CONTAINERS`, `NETWORKS`, `EVENTS`, and `POST` permissions
+- The script requires: `CONTAINERS`, `NETWORKS`, `EVENTS` permissions
+- Advanced setup additionally requires `POST` and `DELETE` for network operations
 
 ## Logging
 
