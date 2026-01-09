@@ -8,7 +8,7 @@ This project provides a lightweight Docker container that automatically manages 
 
 ## Problem Statement
 
-In Docker environments with Traefik as a reverse proxy, containers need to be on the same network as Traefik to be accessible. Manually managing these network connections becomes tedious, especially in dynamic environments where containers are frequently created and destroyed; moreover reusing a common reverse proxy network is not a best practice because that way containers are not isolated, even if it could be accettable in some scenarios.
+In Docker environments with Traefik as a reverse proxy, containers need to be on the same network as Traefik to be accessible. Manually managing these network connections becomes tedious, especially in dynamic environments where containers are frequently created and destroyed; moreover reusing a common reverse proxy network is not a best practice because that way containers are not isolated, even if it could be accettable in some scenarios (see 'Simplified Setup' below).
 
 ## Solution
 
