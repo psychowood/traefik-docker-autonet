@@ -32,31 +32,26 @@ docker events --filter "type=container" --filter "event=create" --filter "event=
   formatted_time=$(date -u -d @$event_time '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || echo "$event_time")
   echo "Event at $formatted_time: $status for container: $container_name";
 
-  case "$status" in
-    create|start)
+  # If already connected, skip
+  if is_connected "$container_name"; then
+    echo "$container_name already connected to $REVERSE_PROXY_NETWORK";
+    continue
+  fi
 
-      # If already connected, skip
-      if is_connected "$container_name"; then
-        echo "$container_name already connected to $REVERSE_PROXY_NETWORK";
-        continue
-      fi
+  # Try connecting with retries to handle transient docker races
+  attempt=0
+  while [ "$attempt" -lt "$RETRIES" ]; do
+    echo "Attempting to connect $container_name to $REVERSE_PROXY_NETWORK (try $((attempt+1))/$RETRIES)"
+    if docker network connect "$REVERSE_PROXY_NETWORK" "$container_name" 2>/dev/null; then
+      echo "Connected $container_name to $REVERSE_PROXY_NETWORK"
+      break
+    fi
+    attempt=$((attempt+1))
+    sleep "$RETRY_DELAY"
+  done
 
-      # Try connecting with retries to handle transient docker races
-      attempt=0
-      while [ "$attempt" -lt "$RETRIES" ]; do
-        echo "Attempting to connect $container_name to $REVERSE_PROXY_NETWORK (try $((attempt+1))/$RETRIES)"
-        if docker network connect "$REVERSE_PROXY_NETWORK" "$container_name" 2>/dev/null; then
-          echo "Connected $container_name to $REVERSE_PROXY_NETWORK"
-          break
-        fi
-        attempt=$((attempt+1))
-        sleep "$RETRY_DELAY"
-      done
-
-      if [ "$attempt" -ge "$RETRIES" ]; then
-        echo "Failed to connect $container_name to $REVERSE_PROXY_NETWORK after $RETRIES attempts"
-      fi
-      ;;
-  esac
+  if [ "$attempt" -ge "$RETRIES" ]; then
+    echo "Failed to connect $container_name to $REVERSE_PROXY_NETWORK after $RETRIES attempts"
+  fi
 done;
 echo "End of loop. Should not see this.";
