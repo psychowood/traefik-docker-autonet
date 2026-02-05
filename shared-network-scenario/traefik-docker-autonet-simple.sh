@@ -16,21 +16,6 @@ docker ps --filter "label=traefik.enable=true" --format "{{.Names}}" | while rea
   docker network connect $REVERSE_PROXY_NETWORK $container_name 2>/dev/null || echo "Already connected";
 done;
 
-# helper: wait for container label traefik.enable=true (returns 0 if found)
-wait_for_label() {
-  container="$1"
-  i=0
-  while [ "$i" -lt "$RETRIES" ]; do
-    val=$(docker inspect --format '{{index .Config.Labels "traefik.enable"}}' "$container" 2>/dev/null || true)
-    if [ "$val" = "true" ]; then
-      return 0
-    fi
-    i=$((i+1))
-    sleep "$RETRY_DELAY"
-  done
-  return 1
-}
-
 # helper: check if container already connected to network
 is_connected() {
   container="$1"
@@ -49,11 +34,6 @@ docker events --filter "type=container" --filter "event=create" --filter "event=
 
   case "$status" in
     create|start)
-      # Wait for label to be available (handles restart races)
-      if ! wait_for_label "$container_name"; then
-        echo "traefik.enable label not present for $container_name after retries; skipping";
-        continue
-      fi
 
       # If already connected, skip
       if is_connected "$container_name"; then
