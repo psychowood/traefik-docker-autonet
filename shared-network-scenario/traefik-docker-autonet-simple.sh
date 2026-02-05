@@ -39,8 +39,8 @@ is_connected() {
 }
 
 echo "Watching for container events...";
-# listen for create, start and destroy events
-docker events --filter "type=container" --filter "event=create" --filter "event=start" --filter "event=destroy" --format "{{.Time}} {{.Action}} {{.Actor.Attributes.name}}" | while read event_time status container_name; do
+# listen for create and start events
+docker events --filter "type=container" --filter "event=create" --filter "event=start" --format "{{.Time}} {{.Action}} {{.Actor.Attributes.name}}" | while read event_time status container_name; do
   # ignore empty names
   [ -z "$container_name" ] && continue
 
@@ -76,11 +76,6 @@ docker events --filter "type=container" --filter "event=create" --filter "event=
       if [ "$attempt" -ge "$RETRIES" ]; then
         echo "Failed to connect $container_name to $REVERSE_PROXY_NETWORK after $RETRIES attempts"
       fi
-      ;;
-
-    destroy)
-      echo "Container destroyed: attempting to disconnect (may already be gone)";
-      docker network disconnect "$REVERSE_PROXY_NETWORK" "$container_name" 2>/dev/null || echo "Disconnect ignored or already removed"
       ;;
   esac
 done;
