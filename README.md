@@ -62,6 +62,9 @@ Then follow the configuration steps in the [shared-network-scenario README](shar
 
 ### Advanced Setup (Per-Container Isolated Networks)
 
+> [!CAUTION]
+> The advanced setup is WIP, bugged, and needs more testing. There are some drawbacks, specifically limits to the subnets addressable to Docker. Follow the [shared-network-scenario](shared-network-scenario/README.md) unless this warning is removed.
+
 For stronger isolation, use the full version which creates a dedicated network for each container with automatic subnet allocation.
 
 Download the script:
