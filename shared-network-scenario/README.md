@@ -43,10 +43,7 @@ services:
       - ./traefik-docker-autonet.sh:/app/traefik-docker-autonet.sh:ro
     environment:
       - REVERSE_PROXY_NETWORK=reverse-proxy
-      - TRAEFIK_CONTAINER=traefik
     command: sh /app/traefik-docker-autonet.sh
-    networks:
-      - reverse-proxy
     restart: unless-stopped
 
   # Your application containers here
@@ -83,7 +80,17 @@ The script:
 
 ## Example: Adding a Container
 
-Simply add the `traefik.enable=true` label:
+Additionaly, if you configure some defaults on the `traefik.yml` static configuration:
+
+```yaml
+    providers:
+      docker:    
+        defaultRule: "Host(`{{ .ContainerName }}.mydomain`)"
+        exposedByDefault: false
+        network: reverse-proxy  
+```
+
+you can avoid declaring the external network at all in the container; simply add the `traefik.enable=true` label:
 
 ```yaml
 services:
@@ -93,7 +100,7 @@ services:
       - traefik.enable=true
 ```
 
-The container will be automatically connected to the `reverse-proxy` network.
+and the container will be automatically connected to the `reverse-proxy` network.
 
 ## With Docker Socket Proxy (Recommended)
 
@@ -120,6 +127,7 @@ socket-proxy:
   restart: unless-stopped
 
 traefik-docker-autonet:
+  ...
   environment:
     - DOCKER_HOST=tcp://docker-socket-proxy:2375
     - REVERSE_PROXY_NETWORK=reverse-proxy
