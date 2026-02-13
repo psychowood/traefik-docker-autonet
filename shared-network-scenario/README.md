@@ -14,17 +14,15 @@ This folder contains the simplified version of traefik-docker-autonet for use ca
 ### 1. Download the Script
 
 ```bash
-wget -O traefik-docker-autonet.sh traefik-docker-autonet-simple.sh
+wget -O traefik-docker-autonet.sh https://raw.githubusercontent.com/psychowood/traefik-docker-autonet/refs/heads/main/shared-network-scenario/traefik-docker-autonet-simple.sh
 chmod +x traefik-docker-autonet.sh
 ```
 
 ### 2. Configure Docker Compose
 
-First, ensure your Traefik container is connected to a network (e.g., `reverse-proxy`):
+First, ensure your Traefik container is already connected to the existing shared network (e.g., `reverse-proxy`):
 
 ```yaml
-version: '3.8'
-
 services:
   traefik:
     image: traefik:latest
@@ -58,8 +56,9 @@ services:
       - traefik.enable=true
       - traefik.http.routers.myapp.rule=Host(`myapp.example.com`)
       - traefik.http.services.myapp.loadbalancer.server.port=80
-    networks:
-      - reverse-proxy
+# The following is not needed anymore if using the script
+#    networks:
+#      - reverse-proxy
     restart: unless-stopped
 
 networks:
@@ -71,15 +70,16 @@ networks:
 
 The script:
 1. **On startup**: Connects all existing containers with `traefik.enable=true` label to the reverse proxy network
-2. **On container creation**: Automatically connects the new container to the reverse proxy network
-3. **On container destruction**: Disconnects the container from the network
+2. **On container creation/start**: Automatically connects containers with the `traefik.enable=true` label to the reverse proxy network.
 
 ## Configuration
 
 ### Environment Variables
 
 - `REVERSE_PROXY_NETWORK`: Name of the shared reverse proxy network (default: `reverse-proxy`)
-- `TRAEFIK_CONTAINER`: Name of the Traefik container (default: `traefik`)
+- `DOCKER_HOST`: Docker socket url, needed in case of a proxy or of a non standard install
+- `RETRIES`: Number of attempts to retry connecting a container to the network on transient failures (default: `5`)
+- `RETRY_DELAY`: Seconds to wait between retry attempts (default: `1`)
 
 ## Example: Adding a Container
 
@@ -108,11 +108,9 @@ socket-proxy:
   command:
     - '-loglevel=info'
     - '-allowfrom=traefik-docker-autonet'
-    - '-allowfrom=traefik'
     - '-listenip=0.0.0.0'
     - '-allowGET=/v1\..{1,2}/(containers/.*|events.*|version)'
     - '-allowPOST=/v1\..{1,2}/networks/.*/connect'
-    - '-allowPOST=/v1\..{1,2}/networks/.*/disconnect'
     - '-stoponwatchchannel'
     - '-watchdeschedule'
   volumes:
@@ -121,17 +119,10 @@ socket-proxy:
     - traefik-socket
   restart: unless-stopped
 
-traefik:
-  environment:
-    - DOCKER_HOST=tcp://docker-socket-proxy:2375
-  networks:
-    - traefik-socket
-
 traefik-docker-autonet:
   environment:
     - DOCKER_HOST=tcp://docker-socket-proxy:2375
     - REVERSE_PROXY_NETWORK=reverse-proxy
-    - TRAEFIK_CONTAINER=traefik
   networks:
     - traefik-socket
 ```
@@ -159,10 +150,6 @@ socket-proxy:
 - All containers share the same network as Traefik (no per-container isolation)
 - Containers need to be able to resolve each other by hostname
 - Network policy rules affect all containers equally
-
-## For Advanced Isolation
-
-If you need per-container network isolation with automatic subnet allocation, use the advanced version in the parent directory.
 
 ## License
 
