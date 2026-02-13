@@ -1,13 +1,11 @@
 #!/bin/sh
 # Configuration
 REVERSE_PROXY_NETWORK="${REVERSE_PROXY_NETWORK:-reverse-proxy}"
-TRAEFIK_CONTAINER="${TRAEFIK_CONTAINER:-traefik}"
 RETRIES="${RETRIES:-5}"
 RETRY_DELAY="${RETRY_DELAY:-1}"
 
 echo "Starting network manager...";
 echo "Reverse proxy network: $REVERSE_PROXY_NETWORK";
-echo "Traefik container: $TRAEFIK_CONTAINER";
 
 # Connect existing traefik-enabled containers
 echo "Processing existing containers...";
