@@ -151,6 +151,10 @@ socket-proxy:
 - Containers need to be able to resolve each other by hostname
 - Network policy rules affect all containers equally
 
+## For Advanced Isolation
+
+If you need per-container network isolation with automatic subnet allocation, use the advanced version in the parent directory (still WIP).
+
 ## License
 
 MIT License
